@@ -51,6 +51,12 @@ server <- function(input, output, session) {
     did_work <- vapply(worked, function(w) {
       ifelse(isTRUE(w), TRUE, FALSE)
     }, logical(1)) 
+    if (!all(did_work)) {
+      notifier::notify(
+        title = "model compilation failed",
+        msg = c("check errors for more info")
+      )
+    }
     model_data$worked <- did_work
     model_data$potential_errors <- worked
     return(model_data)
