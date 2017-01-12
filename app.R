@@ -3,12 +3,22 @@ library(miniUI)
 library(dplyr)
 ui <- miniPage(
   gadgetTitleBar("watch mrgsolve models"),
+  miniTabstripPanel(
+    miniTabPanel("models",
+                 
   miniContentPanel(
                    DT::dataTableOutput('modelStatus'),
                    height = "100%"
   ),
   miniButtonBlock(
     actionButton("reset", "Reset")
+  )
+  ),
+  miniTabPanel("errors",
+  miniContentPanel(
+    textOutput("modelErrors")
+  )
+  )
   )
 )
 
