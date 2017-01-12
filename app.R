@@ -36,9 +36,6 @@ server <- function(input, output, session) {
   # rv <- reactiveValues(
   #   tbl = data.frame(model = c("mod1", "mod2"), mod_time = c(as.numeric(Sys.time()) %% 86000, as.numeric(Sys.time()) %% 86000))
   # )
-  model_errors <- reactive({
-    "no errors"
-  })
   model_output <- reactive({
     model_data <- data_available() %>% mutate(model = row.names(.)) %>%
       select(model, everything()) 
@@ -54,17 +51,26 @@ server <- function(input, output, session) {
     did_work <- vapply(worked, function(w) {
       ifelse(isTRUE(w), TRUE, FALSE)
     }, logical(1)) 
-    if (!all(did_work)) {
-      model_errors <- paste(worked[!did_work], collapse = "\n\n")
-    }
     model_data$worked <- did_work
+    model_data$potential_errors <- worked
     return(model_data)
   })
   
   output$modelStatus <- DT::renderDataTable({
-    model_output()
+    model_output() %>% select(-potential_errors)
   }, class = "cell-border stripe compact", 
   options = list(pageLength = 10, dom = 'tip'))
+  
+  output$modelErrors <- renderText({
+    # need to also track model_output so will re-compile models
+    # while on the error panel
+    out <- model_output()
+    if(!all(out$worked)) {
+      failed <- out %>% filter(!worked)
+    }
+    paste(failed$potential_errors, collapse = "\n\n")
+    
+  })
   
   observeEvent(input$done, {
     stopApp(TRUE)
