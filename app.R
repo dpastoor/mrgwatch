@@ -26,9 +26,19 @@ server <- function(input, output, session) {
   #   tbl = data.frame(model = c("mod1", "mod2"), mod_time = c(as.numeric(Sys.time()) %% 86000, as.numeric(Sys.time()) %% 86000))
   # )
   output$modelStatus <- DT::renderDataTable({
-    data_available() %>% mutate(model = row.names(.),
-                                working = TRUE) %>%
+    model_data <- data_available() %>% mutate(model = row.names(.)) %>%
       select(model, everything()) 
+    
+    worked <- lapply(model_data$model, function(m) {
+      works <- tryCatch({
+        mrgsolve::mread_cache(gsub(".cpp", "", m), soloc = "tmp_compiled")
+        return(TRUE)
+    }, error = function(e) {
+      return(e)
+    })
+    })
+    model_data$worked <- unlist(worked)
+    model_data
   }, class = "cell-border stripe compact", 
   options = list(pageLength = 10, dom = 'tip'))
   
