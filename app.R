@@ -5,26 +5,24 @@ ui <- miniPage(
   gadgetTitleBar("watch mrgsolve models"),
   miniTabstripPanel(
     miniTabPanel("models",
-                 
-  miniContentPanel(
-                   DT::dataTableOutput('modelStatus'),
-                   height = "100%"
-  ),
-  miniButtonBlock(
-    actionButton("reset", "Reset")
-  )
-  ),
-  miniTabPanel("errors",
-  miniContentPanel(
-    textOutput("modelErrors")
-  )
-  )
+                 miniContentPanel(
+                   DT::dataTableOutput('modelStatus')
+                 ),
+                 miniButtonBlock(
+                   actionButton("reset", "Reset")
+                 )
+    ),
+    miniTabPanel("errors",
+                 miniContentPanel(
+                   textOutput("modelErrors")
+                 )
+    )
   )
 )
 
 server <- function(input, output, session) {
   tmpdir <- tempdir()
-  data_available <- reactivePoll(2000, session, 
+  data_available <- reactivePoll(500, session, 
                                  checkFunc = function() {
                                    file.info(list.files(pattern = "*.cpp")) %>%
                                      select(-atime)
@@ -44,28 +42,35 @@ server <- function(input, output, session) {
       works <- tryCatch({
         mrgsolve::mread_cache(gsub(".cpp", "", m), soloc = tmpdir)
         return(TRUE)
-    }, error = function(e) {
-      return(e)
-    })
+      }, error = function(e) {
+        return(e)
+      })
     })
     did_work <- vapply(worked, function(w) {
       ifelse(isTRUE(w), TRUE, FALSE)
     }, logical(1)) 
-    if (!all(did_work)) {
-      notifier::notify(
-        title = "model compilation failed",
-        msg = c("check errors for more info")
-      )
-    }
+    
     model_data$worked <- did_work
     model_data$potential_errors <- worked
+    
+    if (!all(did_work)) {
+      if (requireNamespace("notifier", quietly = T)) {
+        failed <- model_data %>% filter(!worked)
+        msg <- paste(failed$potential_errors, collapse = "\n\n")
+        notifier::notify(
+          title = "model compilation failed",
+          msg = msg 
+        )
+      }
+    }
+    
     return(model_data)
   })
   
   output$modelStatus <- DT::renderDataTable({
     model_output() %>% select(-potential_errors)
   }, class = "cell-border stripe compact", 
-  options = list(pageLength = 10, dom = 'tip'))
+  options = list(pageLength = 10, dom = 't'))
   
   output$modelErrors <- renderText({
     # need to also track model_output so will re-compile models
@@ -73,8 +78,9 @@ server <- function(input, output, session) {
     out <- model_output()
     if(!all(out$worked)) {
       failed <- out %>% filter(!worked)
+      return(paste(failed$potential_errors, collapse = "\n\n"))
     }
-    paste(failed$potential_errors, collapse = "\n\n")
+    return("no errors")
     
   })
   
