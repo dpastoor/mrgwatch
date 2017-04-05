@@ -1,6 +1,8 @@
 library(shiny)
 library(miniUI)
 library(dplyr)
+library(DT)
+WATCH_LOCATION <-  "../vanco-models/models"
 ui <- miniPage(
   gadgetTitleBar("watch mrgsolve models"),
   miniTabstripPanel(
@@ -24,11 +26,11 @@ server <- function(input, output, session) {
   tmpdir <- tempdir()
   data_available <- reactivePoll(500, session, 
                                  checkFunc = function() {
-                                   file.info(list.files(pattern = "*.cpp")) %>%
+                                   file.info(normalizePath(list.files(WATCH_LOCATION, pattern = "*.cpp", full.names = T))) %>%
                                      select(-atime)
                                  },
                                  valueFunc = function() {
-                                   file.info(list.files(pattern = "*.cpp")) %>%
+                                   file.info(normalizePath(list.files(WATCH_LOCATION, pattern = "*.cpp", full.names = T))) %>%
                                      select(mtime)
                                  })
   # rv <- reactiveValues(
@@ -40,7 +42,7 @@ server <- function(input, output, session) {
     
     worked <- lapply(model_data$model, function(m) {
       works <- tryCatch({
-        mrgsolve::mread_cache(gsub(".cpp", "", m), soloc = tmpdir)
+        mrgsolve::mread_cache(basename(gsub(".cpp", "", m)),project = WATCH_LOCATION, soloc = tmpdir)
         return(TRUE)
       }, error = function(e) {
         return(e)
